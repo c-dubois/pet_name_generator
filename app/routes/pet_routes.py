@@ -9,23 +9,6 @@ load_dotenv()
 
 bp = Blueprint("pets", __name__, url_prefix="/pets")
 
-def generate_pet_name(species, color, personality):
-    prompt = (
-        f"Suggest a creative, unique, and cute name for a {color} {species} "
-        f"with a {personality} personality. Only return a single-word name, nothing else."
-    )
-
-    client = genai.Client(api_key=os.environ["GEMINI_API_KEY"])
-    response = client.models.generate_content(model="gemini-2.0-flash", contents=prompt)
-
-    prompt = (
-        f"Suggest a creative, unique, and cute name for a {color} {species} "
-        f"with a {personality} personality. Only return the name itself, nothing else."
-    )
-
-    return response.text.strip().split('\n')[0]
-
-
 @bp.post("")
 def create_pet():
     request_body = request.get_json()
@@ -73,6 +56,29 @@ def get_pets():
 def get_single_pet(pet_id):
     pet = validate_model(Pet,pet_id)
     return pet.to_dict()
+
+@bp.patch("/<pet_id>")
+def regenerate_pet_name(pet_id):
+    pet = validate_model(Pet, pet_id)
+    try:
+        new_name = generate_pet_name(pet.animal_type, pet.color, pet.personality)
+        pet.name = new_name
+        db.session.commit()
+    except Exception as e:
+        abort(make_response({"message": f"Failed to regenerate name: {str(e)}"}, 500))
+
+    return "", 204
+
+def generate_pet_name(species, color, personality):
+    prompt = (
+        f"Suggest a creative, unique, and cute name for a {color} {species} "
+        f"with a {personality} personality. Only return a single-word name, nothing else."
+    )
+
+    client = genai.Client(api_key=os.environ["GEMINI_API_KEY"])
+    response = client.models.generate_content(model="gemini-2.0-flash", contents=prompt)
+
+    return response.text.strip().split('\n')[0]
 
 def validate_model(cls,id):
     try:
