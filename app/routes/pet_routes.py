@@ -39,7 +39,6 @@ def create_pet():
 
     return make_response(new_pet.to_dict(), 201)
 
-
 @bp.get("")
 def get_pets():
     pet_query = db.select(Pet)
